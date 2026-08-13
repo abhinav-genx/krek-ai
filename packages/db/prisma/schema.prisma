@@ -1,0 +1,18 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                            String  @id @default(uuid())
+  email                         String  @unique
+  name                          String
+  passwordHash                  String
+  github_access_token_encrypted String?
+}
