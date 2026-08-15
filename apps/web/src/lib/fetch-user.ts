@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getCookie } from "./get-cookie";
+import { SERVICES } from "./services";
 
 export const fetchuser = async () => {
   const auth_cookie = getCookie("authorization");
@@ -9,7 +10,7 @@ export const fetchuser = async () => {
   }
 
   try {
-    const res = await axios.post("http://localhost:4000/user/details", {
+    const res = await axios.post(`${SERVICES.auth}/user/details`, {
       authorization: `Bearer ${auth_cookie}`,
     });
 

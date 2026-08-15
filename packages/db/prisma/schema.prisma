@@ -15,4 +15,48 @@ model User {
   name                          String
   passwordHash                  String
   github_access_token_encrypted String?
+
+  chats Chat[]
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sandboxId String
+  status    String    @default("idle")
+  result    String?
+  messages  Message[]
+  events    ChatEvent[]
+
+  @@index([userId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([chatId])
+}
+
+// Live agent activity (parent/swarm/system/error channels) persisted so a chat's
+// full run trace can be replayed on reload. Autoincrement id preserves order.
+model ChatEvent {
+  id        Int      @id @default(autoincrement())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  channel   String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([chatId])
 }
