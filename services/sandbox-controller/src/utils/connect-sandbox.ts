@@ -47,8 +47,9 @@ export const connectOrRecreateSandbox = async (
       (await objectExists(workspaceKey(chatId)))
     ) {
       const url = await presignGet(workspaceKey(chatId));
+      // Run as root: the workspace lives in /root/workspace-krek-ai.
       await sandbox.commands
-        .run(restoreScript(toB64(url)), { timeoutMs: 120_000 })
+        .run(restoreScript(toB64(url)), { user: "root", timeoutMs: 120_000 })
         .catch(() => undefined);
     }
     // Rebuild crack-head (its node_modules/dist are gitignored out of snapshots)

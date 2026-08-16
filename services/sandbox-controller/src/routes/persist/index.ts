@@ -28,7 +28,9 @@ persistRouter.post("/snapshot", async (req: Request, res) => {
   try {
     const sandbox = await Sandbox.connect(sandboxId);
     const url = await presignPut(workspaceKey(chatId));
+    // Run as root: the agent's files live in /root/workspace-krek-ai.
     const out = await sandbox.commands.run(snapshotScript(toB64(url)), {
+      user: "root",
       timeoutMs: 120_000,
     });
     const combined = `${out.stdout}\n${out.stderr}`;

@@ -1,6 +1,5 @@
 import { Router, type Request, type Router as ExpressRouter } from "express";
 import {
-  BROWSER_PORT,
   ensureBrowserScript,
   startBrowserCmd,
   browserReadyScript,
@@ -10,8 +9,10 @@ import { connectOrRecreateSandbox } from "../../utils/connect-sandbox.js";
 
 const browserRouter: ExpressRouter = Router();
 
-// Ensures a Chromium + noVNC stack is installed and running in the given
-// sandbox, then returns a noVNC viewer URL (auto-connect, password embedded).
+// Ensures a headless Chromium + CDP viewer is installed and running in the given
+// sandbox, then returns the viewer URL. The viewer streams the page over the
+// Chrome DevTools Protocol (no VNC), and the port is chosen dynamically inside
+// the sandbox rather than a fixed 6080.
 browserRouter.post("/browser", async (req: Request, res) => {
   const { sandboxId, chatId } = req.body ?? {};
 
@@ -29,41 +30,40 @@ browserRouter.post("/browser", async (req: Request, res) => {
         typeof chatId === "string" && chatId ? chatId : undefined,
       );
 
-    // Install the stack on first use. The apt install is large (Chromium + X),
-    // so allow a generous command timeout.
+    // Install Chromium on first use, write the viewer/server, and allocate the
+    // port. The apt install is large, so allow a generous command timeout.
     const ensure = await sandbox.commands.run(ensureBrowserScript(), {
       timeoutMs: 420_000,
     });
     const out = `${ensure.stdout}\n${ensure.stderr}`;
 
-    const password = parseMarker(out, "KREK_PASS");
     const deps = parseMarker(out, "KREK_DEPS");
+    const portStr = parseMarker(out, "KREK_PORT");
     const running = parseMarker(out, "KREK_RUNNING");
+    const port = Number(portStr);
 
-    if (!password || deps !== "OK") {
+    if (deps !== "OK" || !Number.isFinite(port) || port <= 0) {
       return res.status(500).json({
-        message: "Failed to install the browser stack in the sandbox.",
+        message: "Failed to install the virtual browser stack in the sandbox.",
         output: out.slice(-2000),
       });
     }
 
-    // Wait until noVNC is serving before handing back a URL. The wait is bounded
-    // by the ready script's own deadline (~90s); the command timeout sits above
-    // it so a slow first boot isn't cut short into a 502, and a failed wait is
-    // swallowed (best-effort) since the viewer reconnects on its own.
+    // Wait until the viewer server is serving before handing back a URL. The
+    // wait is bounded by the ready script's own deadline (~75s); the command
+    // timeout sits above it so a slow first boot isn't cut short into a 502, and
+    // a failed wait is swallowed (best-effort) since the viewer reconnects.
     if (running !== "1") {
-      await sandbox.commands.run(startBrowserCmd(password), {
+      await sandbox.commands.run(startBrowserCmd(), {
         background: true,
       });
       await sandbox.commands
-        .run(browserReadyScript(), { timeoutMs: 105_000 })
+        .run(browserReadyScript(port), { timeoutMs: 105_000 })
         .catch(() => undefined);
     }
 
-    const host = sandbox.getHost(BROWSER_PORT);
-    const url = `https://${host}/vnc.html?autoconnect=true&resize=scale&password=${encodeURIComponent(
-      password,
-    )}`;
+    const host = sandbox.getHost(port);
+    const url = `https://${host}/`;
 
     res.json({ url, sandboxId: activeSandboxId });
   } catch (error) {
@@ -71,7 +71,7 @@ browserRouter.post("/browser", async (req: Request, res) => {
     console.error("[sandbox-controller] /sandbox/browser failed:", error);
 
     res.status(500).json({
-      message: "Failed to start the browser in the sandbox.",
+      message: "Failed to start the virtual browser in the sandbox.",
       error: message,
     });
   }

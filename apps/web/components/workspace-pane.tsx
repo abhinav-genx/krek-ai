@@ -97,7 +97,7 @@ export function WorkspacePane({
         error:
           which === "editor"
             ? "Couldn't start the editor. Give it a moment, then try again."
-            : "Couldn't start the browser. First launch installs Chromium and can take a minute — try again.",
+            : "Couldn't start the virtual browser. First launch installs Chromium and can take a minute — try again.",
       }));
     }
   };
@@ -186,7 +186,7 @@ export function WorkspacePane({
           state={browser}
           visible={tab === "browser"}
           title="Sandbox browser"
-          loadingText="Starting the browser… first launch installs Chromium, which can take a minute."
+          loadingText="Starting the virtual browser… first launch installs Chromium, which can take a minute."
           onRetry={() => void load("browser")}
         />
       </div>

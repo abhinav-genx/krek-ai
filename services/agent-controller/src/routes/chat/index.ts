@@ -393,8 +393,8 @@ chatRouter.post("/chat/editor", requireUserDetails, async (req, res) => {
   }
 });
 
-// Starts (or reuses) the in-sandbox Chromium + noVNC browser for a chat and
-// returns its viewer URL. Only the chat's owner may open it.
+// Starts (or reuses) the in-sandbox headless Chromium (CDP) virtual browser for
+// a chat and returns its viewer URL. Only the chat's owner may open it.
 chatRouter.post("/chat/browser", requireUserDetails, async (req, res) => {
   const userId = res.locals.user.id;
   const { chat_id } = req.body ?? {};
