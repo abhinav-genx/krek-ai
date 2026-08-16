@@ -43,6 +43,12 @@ const EMPTY: PaneState = {
 const MAX_AUTO_RETRIES = 2;
 const RETRY_DELAY_MS = 2500;
 
+// The sandbox lifetime is an absolute timer (~30 min) refreshed only when a pane
+// is (re)opened, so an idle-but-open editor/browser gets reclaimed mid-session
+// and disconnects. Ping keep-alive well under that window to keep it alive while
+// the pane stays open.
+const KEEPALIVE_INTERVAL_MS = 4 * 60 * 1000; // 4 min
+
 const TABS: {
   id: TabId;
   label: string;
@@ -97,7 +103,7 @@ export function WorkspacePane({
         error:
           which === "editor"
             ? "Couldn't start the editor. Give it a moment, then try again."
-            : "Couldn't start the browser. First launch installs Chromium and can take a minute — try again.",
+            : "Couldn't start the virtual browser. First launch installs Chromium and can take a minute — try again.",
       }));
     }
   };
@@ -113,6 +119,31 @@ export function WorkspacePane({
     void load("editor");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId]);
+
+  // Keep the sandbox alive while any pane is open so it isn't reclaimed
+  // mid-session (which disconnects the editor and browser). If the sandbox has
+  // already expired, reload the visible pane to recreate it.
+  useEffect(() => {
+    const ping = async () => {
+      // Nothing to keep alive until at least one pane has been opened.
+      if (!editor.url && !browser.url) return;
+      try {
+        const token = getCookie("authorization") ?? "";
+        await axios.post(`${AGENT_API}/chat/keepalive`, {
+          authorization: `Bearer ${token}`,
+          chat_id: chatId,
+        });
+      } catch (err) {
+        // 410 -> sandbox expired; reopen the visible pane to recreate it.
+        if (axios.isAxiosError(err) && err.response?.status === 410) {
+          void load(tab);
+        }
+      }
+    };
+    const id = setInterval(() => void ping(), KEEPALIVE_INTERVAL_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, tab, editor.url, browser.url]);
 
   const current = tab === "editor" ? editor : browser;
 
@@ -186,7 +217,7 @@ export function WorkspacePane({
           state={browser}
           visible={tab === "browser"}
           title="Sandbox browser"
-          loadingText="Starting the browser… first launch installs Chromium, which can take a minute."
+          loadingText="Starting the virtual browser… first launch installs Chromium, which can take a minute."
           onRetry={() => void load("browser")}
         />
       </div>

@@ -31,6 +31,9 @@ model Chat {
   sandboxId String
   status    String    @default("idle")
   result    String?
+  // GitHub repos ("owner/name") cloned into this chat's sandbox — the targets
+  // for the "Create PR" flow.
+  repos     String[]  @default([])
   messages  Message[]
   events    ChatEvent[]
 

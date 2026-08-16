@@ -2,10 +2,19 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import axios from "axios";
-import { AlertTriangle, Bot, Loader2, Terminal, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Bot,
+  GitPullRequest,
+  Loader2,
+  Terminal,
+  Users,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CreatePrDialog } from "@/components/create-pr-dialog";
 import { getCookie } from "@/src/lib/get-cookie";
 import { SERVICES } from "@/src/lib/services";
 
@@ -143,6 +152,7 @@ export function ChatWindow({
   const [result, setResult] = useState<string | null>(null);
   const [liveEvents, setLiveEvents] = useState<StreamEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [prOpen, setPrOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -319,8 +329,23 @@ export function ChatWindow({
         <h2 className="truncate text-sm font-medium">
           {title?.trim() || "Untitled chat"}
         </h2>
-        <StatusBadge status={status} />
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge status={status} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPrOpen(true)}
+            title="Create a pull request from this chat's changes"
+          >
+            <GitPullRequest className="size-4" />
+            Create PR
+          </Button>
+        </div>
       </div>
+
+      {prOpen && (
+        <CreatePrDialog chatId={chatId} onClose={() => setPrOpen(false)} />
+      )}
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">

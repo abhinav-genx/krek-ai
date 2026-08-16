@@ -7,6 +7,8 @@ import { usetoolRouter } from "./routes/use-tools/index.js";
 import { editorRouter } from "./routes/editor/index.js";
 import { browserRouter } from "./routes/browser/index.js";
 import { persistRouter } from "./routes/persist/index.js";
+import { keepaliveRouter } from "./routes/keepalive/index.js";
+import { prRouter } from "./routes/pr/index.js";
 import { requireInternalKey } from "./middlewares/internal-auth.js";
 import {
   requestLogger,
@@ -30,6 +32,8 @@ app.use("/sandbox", requireInternalKey, usetoolRouter)
 app.use("/sandbox", requireInternalKey, browserRouter);;
 app.use("/sandbox", requireInternalKey, editorRouter);
 app.use("/sandbox", requireInternalKey, persistRouter);
+app.use("/sandbox", requireInternalKey, keepaliveRouter);
+app.use("/sandbox", requireInternalKey, prRouter);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ message: "All Good !!!" });

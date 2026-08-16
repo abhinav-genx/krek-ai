@@ -1,6 +1,13 @@
+// Where crack-head is installed: a hidden dir in $HOME OUTSIDE the user's
+// workspace, so it never pollutes the editor file tree and is never captured by
+// the workspace snapshot. Kept in one place so setup + runner agree.
+export const CRACK_HEAD_DIR = ".krek-crack-head";
+
 // Runs crack-head's built CLI (dist/cli.js) headlessly with --use-tools. We
 // invoke it by absolute path via node rather than a global `crack-head` bin, so
-// it does not depend on the sandbox's global npm bin being on PATH.
+// it does not depend on the sandbox's global npm bin being on PATH. The CLI lives
+// outside the workspace (~/.krek-crack-head) but runs with cwd=WORKSPACE so its
+// tools operate on the user's files.
 export const crackHeadRunnerPyCode = (
   toolsXml: string,
   workspaceDir = "workspace-krek-ai",
@@ -10,7 +17,13 @@ import os
 import subprocess
 
 WORKSPACE = os.path.expanduser(os.path.join("~", ${JSON.stringify(workspaceDir)}))
-CLI = os.path.join(WORKSPACE, "crack-head", "dist", "cli.js")
+CLI = os.path.expanduser(os.path.join("~", ${JSON.stringify(CRACK_HEAD_DIR)}, "dist", "cli.js"))
+
+# Backwards-compat: older sandboxes installed crack-head inside the workspace.
+if not os.path.isfile(CLI):
+    legacy = os.path.join(WORKSPACE, "crack-head", "dist", "cli.js")
+    if os.path.isfile(legacy):
+        CLI = legacy
 
 if not os.path.isfile(CLI):
     print(f"ERROR: crack-head CLI not found at {CLI} (build may have failed)")
@@ -50,6 +63,7 @@ import os
 import subprocess
 
 WORKSPACE = os.path.expanduser(os.path.join("~", ${JSON.stringify(workspaceDir)}))
+CRACK_HEAD_DIR = os.path.expanduser(os.path.join("~", ${JSON.stringify(CRACK_HEAD_DIR)}))
 CRACK_HEAD_URL = ${JSON.stringify(crackHeadRepoUrl)}
 REPOS = ${JSON.stringify(repos)}
 GITHUB_TOKEN = ${JSON.stringify(githubToken ?? "")}
@@ -72,8 +86,18 @@ def run(cmd, cwd=None):
     return result.returncode
 
 
-# Clone and install crack-head
-crack_head_dir = os.path.join(WORKSPACE, "crack-head")
+# Remove any legacy in-workspace crack-head so it no longer shows in the editor
+# tree (older sandboxes installed it inside the workspace).
+import shutil
+
+legacy_crack_head = os.path.join(WORKSPACE, "crack-head")
+if os.path.isdir(legacy_crack_head):
+    shutil.rmtree(legacy_crack_head, ignore_errors=True)
+    print("removed legacy in-workspace crack-head")
+
+# Clone and install crack-head OUTSIDE the workspace so it never shows up in the
+# user's editor or the workspace snapshot.
+crack_head_dir = CRACK_HEAD_DIR
 if os.path.isdir(crack_head_dir):
     print("crack-head already cloned")
 else:

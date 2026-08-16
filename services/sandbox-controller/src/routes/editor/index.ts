@@ -30,8 +30,11 @@ editorRouter.post("/editor", async (req: Request, res) => {
       );
 
     // Install (first time only) + create the password file. The curl|sh install
-    // can take a while, so allow a generous command timeout.
+    // can take a while, so allow a generous command timeout. Run as root: the
+    // agent's runCode kernel writes the workspace to /root/workspace-krek-ai,
+    // which the default "user" can't access — so code-server must be root too.
     const ensure = await sandbox.commands.run(ensureEditorScript(), {
+      user: "root",
       timeoutMs: 300_000,
     });
     const out = `${ensure.stdout}\n${ensure.stderr}`;
@@ -53,10 +56,11 @@ editorRouter.post("/editor", async (req: Request, res) => {
     // failed wait is swallowed (best-effort) since the frame reconnects anyway.
     if (running !== "1") {
       await sandbox.commands.run(startEditorCmd(), {
+        user: "root",
         background: true,
       });
       await sandbox.commands
-        .run(editorReadyScript(), { timeoutMs: 75_000 })
+        .run(editorReadyScript(), { user: "root", timeoutMs: 75_000 })
         .catch(() => undefined);
     }
 
